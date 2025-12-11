@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  keycloak:
+    container_name: baeldung-keycloak
+    image: quay.io/keycloak/keycloak:25.0.1
+    command:
+      - start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: localhost
+    ports:
+      - "8082:8080"
