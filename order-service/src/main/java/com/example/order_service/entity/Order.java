@@ -26,7 +26,7 @@ public class Order {
     private OrderStatus status;
 
     @Column(name = "total_price", nullable = false)
-    private Long totalPrice; // в тыйынах/копейках
+    private Long totalPrice; // price in cents/tyiyn
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

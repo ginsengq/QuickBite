@@ -1,0 +1,220 @@
+version: '3.8'
+
+services:
+  # postgresql database for order service
+  postgres-orders:
+    image: postgres:15-alpine
+    container_name: quickbite-postgres-orders
+    environment:
+      POSTGRES_DB: quickbite_orders
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Aidosmaidos2003
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-orders-data:/var/lib/postgresql/data
+    networks:
+      - quickbite-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # postgresql database for restaurant service
+  postgres-restaurants:
+    image: postgres:15-alpine
+    container_name: quickbite-postgres-restaurants
+    environment:
+      POSTGRES_DB: quickbite_restaurant
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Aidosmaidos2003
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-restaurants-data:/var/lib/postgresql/data
+    networks:
+      - quickbite-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # postgresql database for user service
+  postgres-users:
+    image: postgres:15-alpine
+    container_name: quickbite-postgres-users
+    environment:
+      POSTGRES_DB: quickbite_users
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Aidosmaidos2003
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-users-data:/var/lib/postgresql/data
+    networks:
+      - quickbite-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # keycloak for authentication
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0.1
+    container_name: quickbite-keycloak
+    command:
+      - start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: localhost
+      KC_HEALTH_ENABLED: true
+    ports:
+      - "8082:8080"
+    networks:
+      - quickbite-network
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q '\"status\": \"UP\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  # zookeeper for kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: quickbite-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - quickbite-network
+
+  # kafka message broker
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: quickbite-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks:
+      - quickbite-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # kafka UI for monitoring
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: quickbite-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: quickbite-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    networks:
+      - quickbite-network
+
+  # order service
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: quickbite-order-service
+    depends_on:
+      postgres-orders:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-orders:5432/quickbite_orders
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: Aidosmaidos2003
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/quickbite
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/quickbite/protocol/openid-connect/certs
+    networks:
+      - quickbite-network
+    restart: on-failure
+
+  # restaurant service
+  restaurant-service:
+    build:
+      context: ./restaurant-service
+      dockerfile: Dockerfile
+    container_name: quickbite-restaurant-service
+    depends_on:
+      postgres-restaurants:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-restaurants:5432/quickbite_restaurant
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: Aidosmaidos2003
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/quickbite
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/quickbite/protocol/openid-connect/certs
+    networks:
+      - quickbite-network
+    restart: on-failure
+
+  # user service
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: quickbite-user-service
+    depends_on:
+      postgres-users:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-users:5432/quickbite_users
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: Aidosmaidos2003
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/quickbite
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/quickbite/protocol/openid-connect/certs
+    networks:
+      - quickbite-network
+    restart: on-failure
+
+volumes:
+  postgres-orders-data:
+  postgres-restaurants-data:
+  postgres-users-data:
+
+networks:
+  quickbite-network:
+    driver: bridge

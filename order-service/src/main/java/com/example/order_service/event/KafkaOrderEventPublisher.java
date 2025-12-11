@@ -4,18 +4,24 @@ import com.example.order_service.entity.Order;
 import com.example.order_service.entity.OrderItem;
 import com.example.order_service.dto.OrderCreatedEvent;
 import com.example.order_service.dto.OrderItemEvent;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.stream.Collectors;
 
+/**
+ * kafka-based order event publisher
+ * activate with 'kafka' spring profile
+ */
 @Component
-@Profile("kafka") // включай профиль kafka, когда хочешь использовать реальную Kafka
+@Profile("kafka")
+@Slf4j
 public class KafkaOrderEventPublisher implements OrderEventPublisher {
 
     private static final String ORDER_CREATED_TOPIC = "order-created";
-    // при желании добавь и второй топик для статусов
+    // can add more topics for different events
 
     private final KafkaTemplate<String, OrderCreatedEvent> kafkaTemplate;
 
@@ -25,16 +31,24 @@ public class KafkaOrderEventPublisher implements OrderEventPublisher {
 
     @Override
     public void publishOrderCreated(Order order) {
+        log.info("publishing order created event to kafka: orderId={}", order.getId());
+        
         OrderCreatedEvent event = mapToEvent(order);
         String key = String.valueOf(order.getUserId());
         kafkaTemplate.send(ORDER_CREATED_TOPIC, key, event);
+        
+        log.info("order created event published successfully");
     }
 
     @Override
     public void publishOrderStatusChanged(Order order) {
-        // TODO: добавить OrderStatusChangedEvent при необходимости
+        log.info("order status changed: orderId={}, status={}", order.getId(), order.getStatus());
+        // TODO: create OrderStatusChangedEvent and publish to kafka
     }
 
+    /**
+     * maps order entity to order created event
+     */
     private OrderCreatedEvent mapToEvent(Order order) {
         OrderCreatedEvent event = new OrderCreatedEvent();
         event.setOrderId(order.getId());
@@ -53,6 +67,9 @@ public class KafkaOrderEventPublisher implements OrderEventPublisher {
         return event;
     }
 
+    /**
+     * maps order item entity to order item event
+     */
     private OrderItemEvent mapItem(OrderItem item) {
         OrderItemEvent ev = new OrderItemEvent();
         ev.setMenuItemId(item.getMenuItemId());

@@ -13,14 +13,20 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * mapper for converting between order entities and DTOs
+ */
 @Component
 public class OrderMapper {
 
+    /**
+     * converts create order request to order entity
+     */
     public Order toEntity(CreateOrderRequest request) {
         Order order = new Order();
         order.setUserId(request.getUserId());
         order.setRestaurantId(request.getRestaurantId());
-        order.setTotalPrice(0L); // потом посчитаешь по меню
+        order.setTotalPrice(0L); // will be calculated with real menu prices later
 
         if (request.getItems() != null) {
             List<OrderItem> items = request.getItems().stream()
@@ -32,14 +38,20 @@ public class OrderMapper {
         return order;
     }
 
+    /**
+     * converts create order item request to order item entity
+     */
     private OrderItem toEntity(CreateOrderItemRequest req) {
         OrderItem item = new OrderItem();
         item.setMenuItemId(req.getMenuItemId());
         item.setQuantity(req.getQuantity());
-        item.setPrice(0L); // потом возьмешь из Restaurant-сервиса
+        item.setPrice(0L); // will be fetched from restaurant service later
         return item;
     }
 
+    /**
+     * converts order entity to order response DTO
+     */
     public OrderResponse toResponse(Order order) {
         OrderResponse resp = new OrderResponse();
         resp.setId(order.getId());
@@ -60,6 +72,9 @@ public class OrderMapper {
         return resp;
     }
 
+    /**
+     * converts order item entity to order item response DTO
+     */
     private OrderItemResponse toResponse(OrderItem item) {
         OrderItemResponse resp = new OrderItemResponse();
         resp.setMenuItemId(item.getMenuItemId());
