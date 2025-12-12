@@ -109,7 +109,7 @@ QuickBite/
 * **Kafka:** Producer → `OrderCreatedEvent`
 * **Security:** JWT через Keycloak
 * **Validation:** `@Valid`, глобальный `@ControllerAdvice`
-* **Swagger:** http://localhost:8080/swagger-ui.html
+* **Swagger:** http://localhost:8083/swagger-ui/index.html
 * **Tests:**
     * 2 Kafka integration tests (KafkaIntegrationTest) ✅
 
@@ -129,7 +129,7 @@ QuickBite/
 * **Kafka:** Producer → `OrderCreatedEvent`
 * **Security:** JWT через Keycloak
 * **Validation:** `@Valid`, глобальный `@ControllerAdvice`
-* **Swagger:** http://localhost:8080/swagger-ui.html
+* **Swagger:** http://localhost:8080/swagger-ui/index.html
 
 #### 2. Restaurant & Menu Service (Port: 8081)
 
@@ -152,7 +152,7 @@ QuickBite/
     * Tables: `restaurants`, `menu_items`, `categories`, `menu_item_categories`
 * **Kafka:** Producer → `MenuUpdatedEvent`
 * **Security:** JWT через Keycloak
-* **Swagger:** http://localhost:8081/swagger-ui.html
+* **Swagger:** http://localhost:8081/swagger-ui/index.html
 
 ## 3. Kafka Integration
 
@@ -211,12 +211,10 @@ QuickBite/
 
 ## 6. Swagger / OpenAPI
 
-* **User Service:** http://localhost:8083/swagger-ui.html
-* **Order Service:** http://localhost:8080/swagger-ui.html
-* **Restaurant Service:** http://localhost:8081/swagger-ui.html
+* **User Service:** http://localhost:8083/swagger-ui/index.html
+* **Order Service:** http://localhost:8080/swagger-ui/index.html
+* **Restaurant Service:** http://localhost:8081/swagger-ui/index.html
 * Автоматическая генерация схем API и моделей DTO
-* Примеры запросов и ответов для всех эндпоинтов
-* JWT авторизация встроена в Swagger UIоделей DTO
 * Примеры запросов и ответов для всех эндпоинтов
 * JWT авторизация встроена в Swagger UI
 
