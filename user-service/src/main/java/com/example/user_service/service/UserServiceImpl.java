@@ -55,6 +55,7 @@ public class UserServiceImpl implements UserService {
                 saved.getEmail(),
                 saved.getFirstName(),
                 saved.getLastName(),
+                saved.getPhone(),
                 saved.getRole()
         );
         userEventPublisher.publishUserCreated(event);
