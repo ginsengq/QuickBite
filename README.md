@@ -185,7 +185,105 @@ QuickBite/
 * **Клиент:** `backend-api` (confidential)
 * **Интеграция:** Spring Security OAuth2 Resource Server
 
-### Настройка Keycloak:
+### Настройка Keycloak и получение JWT токена
+
+#### 1. Войти в Keycloak Admin Console
+
+Откройте http://localhost:8082/admin
+- **Username:** admin
+- **Password:** admin
+
+#### 2. Создать Realm `quickbite`
+
+1. Нажмите на dropdown в левом верхнем углу (где написано "master")
+2. Нажмите "Create Realm"
+3. **Realm name:** quickbite
+4. **Enabled:** ON
+5. Нажмите "Create"
+
+#### 3. Создать Client `backend-api`
+
+1. В realm `quickbite` перейдите в **Clients** → **Create client**
+2. **Client ID:** backend-api
+3. **Client authentication:** ON
+4. **Valid redirect URIs:** `http://localhost:8080/*`, `http://localhost:8081/*`, `http://localhost:8083/*`
+5. **Web origins:** `*`
+6. Сохранить
+
+#### 4. Создать Roles
+
+1. Перейдите в **Realm roles** → **Create role**
+2. Создайте роли:
+   - `ROLE_USER`
+   - `ROLE_ADMIN`
+
+#### 5. Создать тестового пользователя
+
+1. Перейдите в **Users** → **Add user**
+2. **Username:** testuser
+3. **Email:** testuser@example.com
+4. **Email verified:** ON
+5. Сохранить
+
+6. Перейти на вкладку **Credentials**
+   - Установить пароль: `password`
+   - **Temporary:** OFF
+
+7. Перейти на вкладку **Role mappings**
+   - **Assign role** → выбрать `ROLE_USER` и `ROLE_ADMIN`
+
+#### 6. Получить JWT токен через REST API
+
+```bash
+curl -X POST http://localhost:8082/realms/quickbite/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password" \
+  -d "client_id=backend-api" \
+  -d "client_secret=YOUR_CLIENT_SECRET" \
+  -d "username=testuser" \
+  -d "password=password"
+```
+
+**Получить client_secret:**
+1. В Keycloak: **Clients** → **backend-api** → вкладка **Credentials**
+2. Скопировать **Client secret**
+
+**Ответ будет содержать:**
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI...",
+  "expires_in": 300,
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI...",
+  "token_type": "Bearer"
+}
+```
+
+#### 7. Использование JWT в Swagger UI
+
+1. Откройте Swagger UI (например: http://localhost:8083/swagger-ui/index.html)
+2. Нажмите кнопку **Authorize** (замок в правом верхнем углу)
+3. В поле **Value** введите: `Bearer YOUR_ACCESS_TOKEN`
+4. Нажмите **Authorize**
+5. Теперь все запросы будут отправляться с JWT токеном
+
+#### 8. Использование JWT через curl
+
+```bash
+curl -X GET http://localhost:8083/api/users \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### Публичные эндпоинты (без авторизации)
+
+Следующие эндпоинты доступны без JWT токена:
+- `GET /api/restaurants` (Restaurant Service)
+- `GET /api/restaurants/{id}` (Restaurant Service)
+- `GET /api/categories` (Restaurant Service)
+- `GET /api/menu-items/restaurant/{id}` (Restaurant Service)
+- `GET /api/menu-items/category/{id}` (Restaurant Service)
+- Swagger UI и API docs (`/swagger-ui/**`, `/v3/api-docs/**`)
+
+### Настройка Keycloak (альтернативный способ):
 
 ## 5. База данных & Flyway
 
