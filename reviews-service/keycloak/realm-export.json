@@ -1,0 +1,19 @@
+{
+  "realm": "quickbite",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "reviews-service-client",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "redirectUris": [],
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true
+    }
+  ],
+  "roles": {
+    "realm": ["ADMIN", "USER"]
+  }
+}
+
