@@ -61,6 +61,46 @@ services:
       timeout: 5s
       retries: 5
 
+  # postgresql database for payment service
+  postgres-payments:
+    image: postgres:15-alpine
+    container_name: quickbite-postgres-payments
+    environment:
+      POSTGRES_DB: quickbite_payments
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Aidosmaidos2003
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-payments-data:/var/lib/postgresql/data
+    networks:
+      - quickbite-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # postgresql database for notification service
+  postgres-notifications:
+    image: postgres:15-alpine
+    container_name: quickbite-postgres-notifications
+    environment:
+      POSTGRES_DB: quickbite_notifications
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Aidosmaidos2003
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres-notifications-data:/var/lib/postgresql/data
+    networks:
+      - quickbite-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # keycloak for authentication
   keycloak:
     image: quay.io/keycloak/keycloak:25.0.1
@@ -219,10 +259,68 @@ services:
       - quickbite-network
     restart: on-failure
 
+  # payment service
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: quickbite-payment-service
+    depends_on:
+      postgres-payments:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8084:8084"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-payments:5432/quickbite_payments
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: Aidosmaidos2003
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8082/realms/quickbite
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://localhost:8082/realms/quickbite/protocol/openid-connect/certs
+    networks:
+      - quickbite-network
+    restart: on-failure
+
+  # notification service
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: quickbite-notification-service
+    depends_on:
+      postgres-notifications:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-notifications:5432/quickbite_notifications
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: Aidosmaidos2003
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8082/realms/quickbite
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://localhost:8082/realms/quickbite/protocol/openid-connect/certs
+    networks:
+      - quickbite-network
+    restart: on-failure
+
 volumes:
   postgres-orders-data:
   postgres-restaurants-data:
   postgres-users-data:
+  postgres-payments-data:
+  postgres-notifications-data:
 
 networks:
   quickbite-network:

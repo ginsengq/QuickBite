@@ -1,8 +1,22 @@
 # QuickBite — Food Delivery Service
 
-**QuickBite** — это сервис доставки еды из кафе и ресторанов. Пользователи могут просматривать категории еды, рестораны, создавать заказы и отслеживать их статус.
+**QuickBite** — это полнофункциональный сервис доставки еды из кафе и ресторанов. Система построена по микросервисной архитектуре с использованием Kafka для обмена сообщениями, Keycloak для безопасности и PostgreSQL для хранения данных.
 
-Система построена по микросервисной архитектуре с интеграцией Kafka, Keycloak для безопасности и PostgreSQL с Flyway для хранения данных.
+---
+
+## 📋 Содержание
+
+1. [Основной функционал](#1-основной-функционал)
+2. [Архитектура системы](#2-архитектура-системы)
+3. [Микросервисы](#3-микросервисы)
+4. [Как работает система](#4-как-работает-система)
+5. [Docker и Docker Compose - простое объяснение](#5-docker-и-docker-compose---простое-объяснение)
+6. [Запуск проекта](#6-запуск-проекта)
+7. [Kafka - обмен сообщениями](#7-kafka---обмен-сообщениями)
+8. [Безопасность (Keycloak)](#8-безопасность-keycloak)
+9. [База данных](#9-база-данных)
+10. [API документация (Swagger)](#10-api-документация-swagger)
+11. [Технологический стек](#11-технологический-стек)
 
 ---
 
@@ -10,182 +24,451 @@
 
 ### Что делает приложение
 
-* Просмотр категорий еды
-* Просмотр ресторанов и меню
-* Создание заказов
-* Отслеживание статуса заказов
-* Авторизация и роль-based доступ
-* Администраторский функционал для управления системой
+* **Просмотр ресторанов и меню** — пользователи могут просматривать доступные рестораны, категории еды и меню
+* **Создание заказов** — пользователи могут создавать заказы из выбранных блюд
+* **Оплата заказов** — автоматическая обработка платежей при создании заказа
+* **Уведомления** — автоматические уведомления о создании заказа, оплате и других событиях
+* **Управление пользователями** — регистрация и управление профилями пользователей
+* **Администраторский функционал** — управление ресторанами, меню, заказами и пользователями
 
 ### Целевая аудитория
 
-* **Пользователи** — создание заказов, отслеживание доставки
+* **Пользователи** — создание заказов, отслеживание доставки, оплата
 * **Администраторы ресторанов** — управление меню и заказами
-* **Системные администраторы** — мониторинг и управление сервисами
-
-### Основные функции
-
-| Функция              | Описание                                    |
-| -------------------- | ------------------------------------------- |
-| **Заказы**           | Создание, изменение, удаление, отслеживание |
-| **Меню и категории** | Просмотр и обновление (Admin)               |
-| **Уведомления**      | Логи, события через Kafka                   |
-| **Безопасность**     | JWT / OAuth2 через Keycloak                 |
+* **Системные администраторы** — мониторинг и управление всеми сервисами
 
 ---
 
-## 2. Архитектура и структура кода
+## 2. Архитектура системы
 
 ### Общая структура проекта
 
 ```
 QuickBite/
-├─ order-service/           # Сервис управления заказами
-│  ├─ src/main/java/com/example/order_service/
-│  │  ├─ controller/        # REST API контроллеры
-│  │  ├─ service/           # Бизнес-логика
-│  │  ├─ repository/        # Spring Data JPA репозитории
-│  │  ├─ entity/            # Сущности / модели
-│  │  ├─ dto/               # Request/Response DTOs
-│  │  ├─ config/            # Настройки Kafka, Keycloak, Security
-│  │  ├─ exception/         # Обработка ошибок, @ControllerAdvice
-│  │  ├─ mapper/            # Мапперы между Entity и DTO
-│  │  ├─ client/            # REST клиенты для других сервисов
-│  │  └─ event/             # Kafka event publishers
-│  ├─ src/main/resources/
-│  │  ├─ application.properties
-│  │  └─ db/migration/      # Flyway миграции
-│  └─ src/test/java/com/example/order_service/
-│     └─ kafka/             # Kafka integration tests
-│
-├─ user-service/            # Сервис управления пользователями
-│  ├─ src/main/java/com/example/user_service/
-│  │  ├─ controller/        # REST API контроллеры
-│  │  ├─ service/           # Бизнес-логика
-│  │  ├─ repository/        # Spring Data JPA репозитории
-│  │  ├─ entity/            # Сущности (User)
-│  │  ├─ dto/               # Request/Response DTOs
-│  │  ├─ config/            # Настройки Kafka, Security, Swagger
-│  │  ├─ exception/         # Обработка ошибок
-│  │  ├─ mapper/            # Мапперы
-│  │  └─ event/             # Kafka event publishers/consumers
-│  ├─ src/main/resources/
-│  │  ├─ application.properties
-│  │  └─ db/migration/      # Flyway миграции
-│  └─ src/test/java/com/example/user_service/
-│     ├─ service/           # Unit tests (Mockito)
-│     └─ integration/       # Integration tests (Testcontainers)
-│
-├─ restaurant-service/      # Сервис ресторанов и меню
-│  ├─ src/main/java/com/example/restaurant_service/
-│  │  ├─ controller/        # REST API контроллеры
-│  │  ├─ service/           # Бизнес-логика
-│  │  ├─ repository/        # Spring Data JPA репозитории
-│  │  ├─ entity/            # Сущности (Restaurant, MenuItem, Category)
-│  │  ├─ dto/               # Request/Response DTOs
-│  │  ├─ config/            # Настройки Kafka, Security, Swagger
-│  │  ├─ exception/         # Обработка ошибок
-│  │  ├─ mapper/            # Мапперы
-│  │  └─ event/             # Kafka events
-│  └─ src/main/resources/
-│     ├─ application.properties
-│     └─ db/migration/      # Flyway миграции
-│
+├─ order-service/           # Сервис управления заказами (порт 8080)
+├─ restaurant-service/      # Сервис ресторанов и меню (порт 8081)
+├─ user-service/            # Сервис управления пользователями (порт 8083)
+├─ payment-service/         # Сервис обработки платежей (порт 8084)
+├─ notification-service/    # Сервис уведомлений (порт 8085)
 ├─ keycloak/                # Keycloak конфигурация
 └─ docker-compose.yml       # Инфраструктура (PostgreSQL, Kafka, Keycloak)
 ```
 
-### Микросервисы
+### Диаграмма архитектуры
 
-#### 1. User Service (Port: 8083)
-
-* **Endpoints:**
-    * `POST /api/users` — создать пользователя (ADMIN)
-    * `GET /api/users/{id}` — получить пользователя (USER, ADMIN)
-    * `GET /api/users` — список всех пользователей (ADMIN)
-    * `PUT /api/users/{id}` — обновить пользователя (USER, ADMIN)
-    * `DELETE /api/users/{id}` — удалить пользователя (ADMIN)
-* **Database:** `quickbite_users` (PostgreSQL:5434)
-* **Kafka:** Producer → `OrderCreatedEvent`
-* **Security:** JWT через Keycloak
-* **Validation:** `@Valid`, глобальный `@ControllerAdvice`
-* **Swagger:** http://localhost:8083/swagger-ui/index.html
-* **Tests:**
-    * 2 Kafka integration tests (KafkaIntegrationTest) ✅
-
-#### 3. Restaurant & Menu Service (Port: 8081)
-    * 7 unit tests (UserServiceImplTest) ✅
-    * 4 integration tests (UserControllerIntegrationTest) ✅
-
-#### 2. Order Service (Port: 8080)
-
-* **Endpoints:**
-    * `POST /api/orders` — создать заказ (USER, ADMIN)
-    * `GET /api/orders/{id}` — получить заказ (USER, ADMIN)
-    * `GET /api/orders?userId={userId}` — список заказов пользователя (USER, ADMIN)
-    * `PATCH /api/orders/{id}/status` — изменить статус заказа (ADMIN)
-* **Database:** `quickbite_orders` (PostgreSQL:5432)
-    * Tables: `orders`, `order_items`
-* **Kafka:** Producer → `OrderCreatedEvent`
-* **Security:** JWT через Keycloak
-* **Validation:** `@Valid`, глобальный `@ControllerAdvice`
-* **Swagger:** http://localhost:8080/swagger-ui/index.html
-
-#### 2. Restaurant & Menu Service (Port: 8081)
-
-* **Endpoints:**
-    * `GET /api/restaurants` — список ресторанов (Public)
-    * `GET /api/restaurants/{id}` — детали ресторана (Public)
-    * `GET /api/restaurants/search?keyword=X` — поиск ресторанов (Public)
-    * `POST /api/restaurants` — добавить ресторан (ADMIN)
-    * `PUT /api/restaurants/{id}` — обновить ресторан (ADMIN)
-    * `DELETE /api/restaurants/{id}` — удалить ресторан (ADMIN)
-    * `GET /api/categories` — список категорий (Public)
-    * `POST /api/categories` — создать категорию (ADMIN)
-    * `GET /api/menu-items/restaurant/{restaurantId}` — меню ресторана (Public)
-    * `GET /api/menu-items/category/{categoryId}` — блюда по категории (Public)
-    * `POST /api/menu-items` — добавить блюдо (ADMIN)
-    * `PUT /api/menu-items/{id}` — обновить блюдо (ADMIN)
-    * `DELETE /api/menu-items/{id}` — удалить блюдо (ADMIN)
-    * `GET /api/menu-items/prices?ids=1,2,3` — получить цены блюд
-* **Database:** `quickbite_restaurant` (PostgreSQL:5433)
-    * Tables: `restaurants`, `menu_items`, `categories`, `menu_item_categories`
-* **Kafka:** Producer → `MenuUpdatedEvent`
-* **Security:** JWT через Keycloak
-* **Swagger:** http://localhost:8081/swagger-ui/index.html
-
-## 3. Kafka Integration
-
-* **События:** 
-    * `OrderCreatedEvent` — создание заказа (Order Service → User Service)
-    * `UserCreatedEvent` — создание пользователя (User Service → Order Service)
-    * `MenuUpdatedEvent` — обновление меню (Restaurant Service)
-* **Топики:** `order-events`, `user-events`, `menu-updated`
-* **Логика:** 
-    * Синхронизация данных между сервисами
-    * Уведомления и логирование событий
-    * Event-driven архитектура
-* **Kafka UI:** http://localhost:8090 (для мониторинга)
-* **Kafka Broker:** localhost:9092
-* **Zookeeper:** localhost:2181
-* **Профили:** 
-    * По умолчанию используется `LoggingOrderEventPublisher` (без Kafka)
-    * Для Kafka активируйте профиль `kafka`
-    * По умолчанию используется `LoggingOrderEventPublisher` (без Kafka)
-    * Для Kafka активируйте профиль `kafka`
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Keycloak (8082)                       │
+│                    (Аутентификация)                          │
+└───────────────────────┬───────────────────────────────────────┘
+                        │ JWT Tokens
+        ┌───────────────┼───────────────┬───────────────┬───────────────┐
+        │               │               │               │               │
+        v               v               v               v               v
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│Order Service │ │Restaurant    │ │User Service  │ │Payment       │ │Notification │
+│   :8080      │ │Service :8081 │ │   :8083      │ │Service :8084 │ │Service :8085 │
+└──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘
+       │                 │                 │               │               │
+       │                 │                 │               │               │
+       v                 v                 v               v               v
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│PostgreSQL    │ │PostgreSQL    │ │PostgreSQL    │ │PostgreSQL    │ │PostgreSQL    │
+│Orders :5432  │ │Restaurant    │ │Users :5434   │ │Payments :5435│ │Notifications│
+│              │ │:5433         │ │              │ │              │ │:5436         │
+└──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
+       │                 │                 │               │               │
+       └─────────────────┴─────────────────┴───────────────┴───────────────┘
+                                    │
+                                    v
+                          ┌─────────────────┐
+                          │  Kafka :9092    │
+                          │  (Event Bus)    │
+                          └─────────────────┘
+```
 
 ---
 
-## 4. Безопасность (Keycloak)
+## 3. Микросервисы
 
-* **URL:** http://localhost:8082
-* **Admin Console:** http://localhost:8082/admin (admin/admin)
-* **Realm:** `quickbite`
-* **Роли:** `ROLE_USER`, `ROLE_ADMIN`
-* **Клиент:** `backend-api` (confidential)
-* **Интеграция:** Spring Security OAuth2 Resource Server
+### 3.1. Order Service (Порт: 8080)
 
-### Настройка Keycloak и получение JWT токена
+**Назначение:** Управление жизненным циклом заказов
+
+**Endpoints:**
+* `POST /api/orders` — создать заказ (USER, ADMIN)
+* `GET /api/orders/{id}` — получить заказ по ID (USER, ADMIN)
+* `GET /api/orders?userId={userId}` — список заказов пользователя (USER, ADMIN)
+* `PATCH /api/orders/{id}/status` — изменить статус заказа (ADMIN)
+
+**База данных:** `quickbite_orders` (PostgreSQL:5432)
+* Таблицы: `orders`, `order_items`
+
+**Kafka:**
+* **Публикует:** `OrderCreatedEvent` → топик `order-created`
+* **Слушает:** `UserCreatedEvent` → топик `user-events`
+
+**Swagger:** http://localhost:8080/swagger-ui/index.html
+
+---
+
+### 3.2. Restaurant Service (Порт: 8081)
+
+**Назначение:** Управление ресторанами, меню и категориями
+
+**Endpoints:**
+
+*Публичные (без авторизации):*
+* `GET /api/restaurants` — список ресторанов
+* `GET /api/restaurants/{id}` — детали ресторана
+* `GET /api/restaurants/search?keyword=X` — поиск ресторанов
+* `GET /api/categories` — список категорий
+* `GET /api/menu-items/restaurant/{restaurantId}` — меню ресторана
+* `GET /api/menu-items/category/{categoryId}` — блюда по категории
+* `GET /api/menu-items/prices?ids=1,2,3` — получить цены блюд
+
+*Только для администраторов:*
+* `POST /api/restaurants` — добавить ресторан (ADMIN)
+* `PUT /api/restaurants/{id}` — обновить ресторан (ADMIN)
+* `DELETE /api/restaurants/{id}` — удалить ресторан (ADMIN)
+* `POST /api/categories` — создать категорию (ADMIN)
+* `POST /api/menu-items` — добавить блюдо (ADMIN)
+* `PUT /api/menu-items/{id}` — обновить блюдо (ADMIN)
+* `DELETE /api/menu-items/{id}` — удалить блюдо (ADMIN)
+
+**База данных:** `quickbite_restaurant` (PostgreSQL:5433)
+* Таблицы: `restaurants`, `menu_items`, `categories`, `menu_item_categories`
+
+**Kafka:**
+* **Публикует:** `MenuUpdatedEvent` → топик `menu-updated`
+
+**Swagger:** http://localhost:8081/swagger-ui/index.html
+
+---
+
+### 3.3. User Service (Порт: 8083)
+
+**Назначение:** Управление пользователями
+
+**Endpoints:**
+* `POST /api/users` — создать пользователя (ADMIN)
+* `GET /api/users/{id}` — получить пользователя (USER, ADMIN)
+* `GET /api/users` — список всех пользователей (ADMIN)
+* `PUT /api/users/{id}` — обновить пользователя (USER, ADMIN)
+* `DELETE /api/users/{id}` — удалить пользователя (ADMIN)
+
+**База данных:** `quickbite_users` (PostgreSQL:5434)
+* Таблицы: `users`
+
+**Kafka:**
+* **Публикует:** `UserCreatedEvent` → топик `user-events`
+
+**Swagger:** http://localhost:8083/swagger-ui/index.html
+
+---
+
+### 3.4. Payment Service (Порт: 8084) ⭐ НОВЫЙ
+
+**Назначение:** Обработка платежей за заказы
+
+**Endpoints:**
+* `POST /api/payments` — обработать платеж (USER, ADMIN)
+* `GET /api/payments/{id}` — получить платеж по ID (USER, ADMIN)
+* `GET /api/payments/order/{orderId}` — получить платеж по заказу (USER, ADMIN)
+* `GET /api/payments/user/{userId}` — список платежей пользователя (USER, ADMIN)
+* `GET /api/payments` — список всех платежей (ADMIN)
+
+**База данных:** `quickbite_payments` (PostgreSQL:5435)
+* Таблицы: `payments`
+
+**Kafka:**
+* **Слушает:** `OrderCreatedEvent` → топик `order-created` (автоматически создает pending платеж)
+* **Публикует:** `PaymentCompletedEvent` → топик `payment-completed`
+
+**Swagger:** http://localhost:8084/swagger-ui/index.html
+
+**Как работает:**
+1. Когда создается заказ, Payment Service автоматически создает pending платеж
+2. Пользователь может обработать платеж через API
+3. После успешной оплаты публикуется событие `PaymentCompletedEvent`
+
+---
+
+### 3.5. Notification Service (Порт: 8085) ⭐ НОВЫЙ
+
+**Назначение:** Отправка уведомлений пользователям
+
+**Endpoints:**
+* `GET /api/notifications/user/{userId}` — получить уведомления пользователя (USER, ADMIN)
+* `GET /api/notifications` — получить все уведомления (ADMIN)
+
+**База данных:** `quickbite_notifications` (PostgreSQL:5436)
+* Таблицы: `notifications`
+
+**Kafka:**
+* **Слушает:**
+  * `OrderCreatedEvent` → топик `order-created` (отправляет уведомление о создании заказа)
+  * `PaymentCompletedEvent` → топик `payment-completed` (отправляет уведомление об оплате)
+  * `UserCreatedEvent` → топик `user-events` (отправляет приветственное уведомление)
+
+**Swagger:** http://localhost:8085/swagger-ui/index.html
+
+**Типы уведомлений:**
+* `ORDER_CREATED` — уведомление о создании заказа
+* `PAYMENT_COMPLETED` — уведомление об успешной оплате
+* `WELCOME` — приветственное уведомление для новых пользователей
+
+---
+
+## 4. Как работает система
+
+### Пример полного потока: Создание заказа
+
+1. **Пользователь создает заказ** → `POST /api/orders` (Order Service)
+   - Order Service создает заказ в базе данных
+   - Order Service публикует событие `OrderCreatedEvent` в Kafka
+
+2. **Payment Service получает событие** → слушает топик `order-created`
+   - Автоматически создает pending платеж для заказа
+
+3. **Notification Service получает событие** → слушает топик `order-created`
+   - Отправляет уведомление пользователю о создании заказа
+
+4. **Пользователь оплачивает заказ** → `POST /api/payments` (Payment Service)
+   - Payment Service обрабатывает платеж
+   - Payment Service публикует событие `PaymentCompletedEvent` в Kafka
+
+5. **Notification Service получает событие оплаты** → слушает топик `payment-completed`
+   - Отправляет уведомление пользователю об успешной оплате
+
+### Схема взаимодействия через Kafka
+
+```
+Order Service          Payment Service        Notification Service
+     │                        │                        │
+     │  OrderCreatedEvent     │                        │
+     ├────────────────────────>│                        │
+     │                        │                        │
+     │                        │  OrderCreatedEvent     │
+     ├────────────────────────────────────────────────>│
+     │                        │                        │
+     │                        │  PaymentCompletedEvent │
+     │                        ├────────────────────────>│
+     │                        │                        │
+```
+
+---
+
+## 5. Docker и Docker Compose - простое объяснение
+
+### Что такое Docker?
+
+**Docker** — это инструмент, который позволяет упаковать приложение и все его зависимости в "контейнер". Контейнер — это как легкий виртуальный компьютер, который работает одинаково на любой машине.
+
+**Простая аналогия:**
+- Представьте, что ваше приложение — это мебель (стол, стул, лампа)
+- Docker — это коробка, в которую вы упаковываете всю мебель
+- Эта коробка может быть открыта и использована на любой машине, и мебель будет работать одинаково
+
+### Что такое Docker Compose?
+
+**Docker Compose** — это инструмент, который позволяет запускать несколько контейнеров одновременно и управлять ими как одной системой.
+
+**Простая аналогия:**
+- Если Docker — это коробка для одной вещи
+- Docker Compose — это склад, где все коробки организованы и работают вместе
+
+### В нашем проекте
+
+В файле `docker-compose.yml` мы определяем:
+
+1. **Базы данных PostgreSQL** (5 штук):
+   - `postgres-orders` — для Order Service
+   - `postgres-restaurants` — для Restaurant Service
+   - `postgres-users` — для User Service
+   - `postgres-payments` — для Payment Service
+   - `postgres-notifications` — для Notification Service
+
+2. **Kafka и Zookeeper**:
+   - `zookeeper` — координатор для Kafka
+   - `kafka` — брокер сообщений
+   - `kafka-ui` — веб-интерфейс для мониторинга Kafka
+
+3. **Keycloak**:
+   - Сервис аутентификации и авторизации
+
+4. **Микросервисы** (5 штук):
+   - `order-service`
+   - `restaurant-service`
+   - `user-service`
+   - `payment-service`
+   - `notification-service`
+
+### Как Docker Compose работает
+
+Когда вы запускаете `docker-compose up`, происходит следующее:
+
+1. **Docker читает файл `docker-compose.yml`**
+2. **Создает сеть** — все контейнеры могут общаться друг с другом
+3. **Создает volumes** — постоянное хранилище для баз данных
+4. **Запускает контейнеры** в правильном порядке:
+   - Сначала базы данных (они должны быть готовы)
+   - Потом Kafka и Zookeeper
+   - Потом Keycloak
+   - В конце микросервисы
+
+### Преимущества Docker
+
+✅ **Изоляция** — каждое приложение работает в своем контейнере
+✅ **Портативность** — работает одинаково на любой машине
+✅ **Простота** — одна команда запускает всю систему
+✅ **Масштабируемость** — легко добавить больше экземпляров сервиса
+
+---
+
+## 6. Запуск проекта
+
+### Предварительные требования
+
+* Java 17+
+* Maven 3.8+
+* Docker & Docker Compose
+
+### Шаги запуска
+
+#### Шаг 1: Запустить инфраструктуру (Docker)
+
+```bash
+docker-compose up -d
+```
+
+Эта команда:
+- Запускает все базы данных PostgreSQL
+- Запускает Kafka и Zookeeper
+- Запускает Keycloak
+- Создает сеть для связи между сервисами
+
+**Проверить статус:**
+```bash
+docker-compose ps
+```
+
+Должны быть запущены:
+- postgres-orders, postgres-restaurants, postgres-users, postgres-payments, postgres-notifications
+- zookeeper, kafka, kafka-ui
+- keycloak
+
+#### Шаг 2: Настроить Keycloak
+
+1. Откройте http://localhost:8082/admin
+   - Username: `admin`
+   - Password: `admin`
+
+2. Создайте Realm `quickbite` (см. раздел 8)
+
+3. Создайте Client `backend-api`
+
+4. Создайте роли: `ROLE_USER`, `ROLE_ADMIN`
+
+5. Создайте тестового пользователя
+
+#### Шаг 3: Запустить микросервисы
+
+**Order Service:**
+```bash
+cd order-service
+./mvnw spring-boot:run
+```
+
+**Restaurant Service:**
+```bash
+cd restaurant-service
+./mvnw spring-boot:run
+```
+
+**User Service:**
+```bash
+cd user-service
+./mvnw spring-boot:run
+```
+
+**Payment Service:**
+```bash
+cd payment-service
+./mvnw spring-boot:run
+```
+
+**Notification Service:**
+```bash
+cd notification-service
+./mvnw spring-boot:run
+```
+
+### Остановка
+
+**Остановить инфраструктуру:**
+```bash
+docker-compose down
+```
+
+**Остановить с удалением данных:**
+```bash
+docker-compose down -v
+```
+
+---
+
+## 7. Kafka - обмен сообщениями
+
+### Что такое Kafka?
+
+**Apache Kafka** — это система обмена сообщениями, которая позволяет сервисам общаться друг с другом асинхронно (не ждать ответа).
+
+**Простая аналогия:**
+- Представьте почтовый ящик
+- Один сервис кладет письмо (публикует событие)
+- Другие сервисы читают письма из ящика (слушают события)
+
+### Топики в нашем проекте
+
+| Топик | Публикует | Слушает | Описание |
+|-------|-----------|---------|----------|
+| `order-created` | Order Service | Payment Service, Notification Service | Событие создания заказа |
+| `payment-completed` | Payment Service | Notification Service | Событие успешной оплаты |
+| `user-events` | User Service | Order Service, Notification Service | Событие создания пользователя |
+| `menu-updated` | Restaurant Service | - | Событие обновления меню |
+
+### Как это работает
+
+1. **Order Service создает заказ** → публикует `OrderCreatedEvent` в топик `order-created`
+2. **Payment Service слушает** топик `order-created` → автоматически создает pending платеж
+3. **Notification Service слушает** топик `order-created` → отправляет уведомление пользователю
+4. **Payment Service обрабатывает платеж** → публикует `PaymentCompletedEvent` в топик `payment-completed`
+5. **Notification Service слушает** топик `payment-completed` → отправляет уведомление об оплате
+
+### Kafka UI
+
+Мониторинг сообщений: http://localhost:8090
+
+Здесь вы можете:
+- Просматривать все топики
+- Видеть сообщения в реальном времени
+- Проверять статус consumer groups
+
+---
+
+## 8. Безопасность (Keycloak)
+
+### Что такое Keycloak?
+
+**Keycloak** — это сервис для управления пользователями, аутентификации и авторизации.
+
+**Простая аналогия:**
+- Keycloak — это охранник на входе
+- Он проверяет вашу личность (аутентификация)
+- Он проверяет, куда вы можете войти (авторизация)
+
+### Настройка Keycloak
 
 #### 1. Войти в Keycloak Admin Console
 
@@ -206,7 +489,7 @@ QuickBite/
 1. В realm `quickbite` перейдите в **Clients** → **Create client**
 2. **Client ID:** backend-api
 3. **Client authentication:** ON
-4. **Valid redirect URIs:** `http://localhost:8080/*`, `http://localhost:8081/*`, `http://localhost:8083/*`
+4. **Valid redirect URIs:** `http://localhost:8080/*`, `http://localhost:8081/*`, `http://localhost:8083/*`, `http://localhost:8084/*`, `http://localhost:8085/*`
 5. **Web origins:** `*`
 6. Сохранить
 
@@ -232,7 +515,7 @@ QuickBite/
 7. Перейти на вкладку **Role mappings**
    - **Assign role** → выбрать `ROLE_USER` и `ROLE_ADMIN`
 
-#### 6. Получить JWT токен через REST API
+#### 6. Получить JWT токен
 
 ```bash
 curl -X POST http://localhost:8082/realms/quickbite/protocol/openid-connect/token \
@@ -248,236 +531,98 @@ curl -X POST http://localhost:8082/realms/quickbite/protocol/openid-connect/toke
 1. В Keycloak: **Clients** → **backend-api** → вкладка **Credentials**
 2. Скопировать **Client secret**
 
-**Ответ будет содержать:**
-```json
-{
-  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI...",
-  "expires_in": 300,
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI...",
-  "token_type": "Bearer"
-}
-```
-
 #### 7. Использование JWT в Swagger UI
 
-1. Откройте Swagger UI (например: http://localhost:8083/swagger-ui/index.html)
+1. Откройте Swagger UI (например: http://localhost:8080/swagger-ui/index.html)
 2. Нажмите кнопку **Authorize** (замок в правом верхнем углу)
 3. В поле **Value** введите: `Bearer YOUR_ACCESS_TOKEN`
 4. Нажмите **Authorize**
-5. Теперь все запросы будут отправляться с JWT токеном
-
-#### 8. Использование JWT через curl
-
-```bash
-curl -X GET http://localhost:8083/api/users \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
-```
-
-### Публичные эндпоинты (без авторизации)
-
-Следующие эндпоинты доступны без JWT токена:
-- `GET /api/restaurants` (Restaurant Service)
-- `GET /api/restaurants/{id}` (Restaurant Service)
-- `GET /api/categories` (Restaurant Service)
-- `GET /api/menu-items/restaurant/{id}` (Restaurant Service)
-- `GET /api/menu-items/category/{id}` (Restaurant Service)
-- Swagger UI и API docs (`/swagger-ui/**`, `/v3/api-docs/**`)
-
-### Настройка Keycloak (альтернативный способ):
-
-## 5. База данных & Flyway
-
-* **СУБД:** PostgreSQL 15
-* **User Service DB:** `quickbite_users` (localhost:5434)
-* **Order Service DB:** `quickbite_orders` (localhost:5432)
-* **Restaurant Service DB:** `quickbite_restaurant` (localhost:5433)
-* **Миграции:** Flyway (автоматически при запуске)
-    * User Service: `V1__create_users_table.sql`
-    * Order Service: `V1__create_orders_tables.sql`
-    * Restaurant Service: 
-        * `V1__create_restaurant_tables.sql`
-        * `V2__insert_sample_data.sql` (тестовые данные)
-* **Репозитории:** Spring Data JPA
-* **Order Service DB:** `quickbite_orders` (localhost:5432)
-* **Restaurant Service DB:** `quickbite_restaurant` (localhost:5433)
-* **Миграции:** Flyway (автоматически при запуске)
-    * Order Service: `V1__create_orders_tables.sql`
-    * Restaurant Service: 
-        * `V1__create_restaurant_tables.sql`
-        * `V2__insert_sample_data.sql` (тестовые данные)
-* **Репозитории:** Spring Data JPA
-
-## 6. Swagger / OpenAPI
-
-* **User Service:** http://localhost:8083/swagger-ui/index.html
-* **Order Service:** http://localhost:8080/swagger-ui/index.html
-* **Restaurant Service:** http://localhost:8081/swagger-ui/index.html
-* Автоматическая генерация схем API и моделей DTO
-* Примеры запросов и ответов для всех эндпоинтов
-* JWT авторизация встроена в Swagger UI
 
 ---
 
-## 7. Запуск проекта
+## 9. База данных
 
-### Предварительные требования:
+### Структура баз данных
 
-* Java 17+
-* Maven 3.8+
-* Docker & Docker Compose
+Каждый микросервис имеет свою базу данных PostgreSQL:
 
-### Шаги запуска:
+| Сервис | База данных | Порт | Таблицы |
+|--------|-------------|------|---------|
+| Order Service | `quickbite_orders` | 5432 | `orders`, `order_items` |
+| Restaurant Service | `quickbite_restaurant` | 5433 | `restaurants`, `menu_items`, `categories`, `menu_item_categories` |
+| User Service | `quickbite_users` | 5434 | `users` |
+| Payment Service | `quickbite_payments` | 5435 | `payments` |
+| Notification Service | `quickbite_notifications` | 5436 | `notifications` |
 
-1. **Запустить инфраструктуру:**
-```bash
-docker-compose up -d
-```
+### Миграции (Flyway)
 
-2. **Подождать пока все сервисы запустятся** (проверить статус):
-```bash
-docker-compose ps
-```
-3. **Настроить Keycloak** (см. раздел 4)
+Все изменения в базе данных версионируются через Flyway миграции:
 
-4. **Запустить User Service:**
-```bash
-cd user-service
-./mvnw spring-boot:run
-```
+- `V1__create_*.sql` — создание таблиц
+- `V2__insert_*.sql` — вставка тестовых данных (если есть)
 
-5. **Запустить Order Service:**
-```bash
-cd order-service
-./mvnw spring-boot:run
-```
-
-6. **Запустить Restaurant Service:**
-```bash
-cd restaurant-service
-./mvnw spring-boot:run
-```vnw spring-boot:run
-```
-
-### Остановка:
-```bash
-## 8. Технологический стек
-
-* **Backend:** Spring Boot 3.5.8
-* **Security:** Spring Security + OAuth2 Resource Server
-* **Database:** PostgreSQL 15
-* **Migration:** Flyway
-* **Messaging:** Apache Kafka 3.9.1
-* **Auth:** Keycloak 25.0.1
-* **Documentation:** SpringDoc OpenAPI 3
-* **Build:** Maven
-* **Java:** 17
-* **Testing:**
-    * JUnit 5.12.2
-    * Mockito 5.17.0
-    * Testcontainers 1.19.3
-## 9. Тестирование
-
-### Запуск тестов
-
-**User Service:**
-```bash
-cd user-service
-./mvnw test
-```
-
-**Order Service:**
-```bash
-cd order-service
-./mvnw test -Dtest=KafkaIntegrationTest
-```
-
-### Покрытие тестами
-
-| Сервис        | Unit Tests | Integration Tests | Kafka Tests | Итого |
-|---------------|------------|-------------------|-------------|-------|
-| User Service  | 7 ✅        | 4 ✅               | -           | 11    |
-| Order Service | -          | -                 | 2 ✅         | 2     |
-| **TOTAL**     | **7**      | **4**             | **2**       | **13** |
-
-### User Service Tests
-
-**Unit Tests (UserServiceImplTest):**
-## 11. Примеры использованияоздание пользователя
-* ✅ `createUser_EmailAlreadyExists_ThrowsException` — дублирующий email
-* ✅ `getUserById_Success` — получение пользователя по ID
-* ✅ `getUserById_NotFound_ThrowsException` — несуществующий ID
-* ✅ `updateUser_Success` — обновление пользователя
-* ✅ `deleteUser_Success` — удаление пользователя
-* ✅ `getAllUsers_Success` — получение всех пользователей
-
-**Integration Tests (UserControllerIntegrationTest):**
-* ✅ `createUser_Success` — REST API создание пользователя
-* ✅ `getUserById_Success` — REST API получение пользователя
-* ✅ `getUserById_NotFound` — REST API ошибка 404
-* ✅ `getAllUsers_Success` — REST API список пользователей
-
-### Order Service Tests
-
-**Kafka Integration Tests (KafkaIntegrationTest):**
-* ✅ `whenOrderCreatedEventPublished_thenMessageIsSent` — публикация одного события
-* ✅ `whenMultipleOrderEventsPublished_thenAllAreSent` — публикация нескольких событий
-
-### Технологии тестирования
-
-* **Unit Tests:** JUnit 5 + Mockito для изоляции бизнес-логики
-* **Integration Tests:** Testcontainers + PostgreSQL для реальной БД
-* **Kafka Tests:** @EmbeddedKafka для тестирования сообщений
-* **Assertions:** AssertJ для fluent API
-* **Async Tests:** Awaitility для ожидания асинхронных операций
-* **Security Tests:** @WithMockUser для авторизации
+Миграции выполняются автоматически при запуске сервиса.
 
 ---
 
-## 10. Лучшие практики
+## 10. API документация (Swagger)
 
-✅ **Реализовано:**
-* Микросервисная архитектура (3 сервиса)
-* Валидация данных с `@Valid`
-## 12. Дальнейшее развитиелючений с `@ControllerAdvice`
-* Логирование на уровнях INFO, ERROR
-* Чистый код с комментариями на английском
-* Swagger документация для всех API
-* Flyway миграции для версионирования БД
-* Security с JWT и ролями (USER, ADMIN)
-* Разделение на слои: Controller → Service → Repository
-* DTOs для всех запросов и ответов
-* Mappers для конвертации Entity ↔ DTO
-* Event-driven architecture с Kafka
-* Docker Compose для инфраструктуры
-* Soft delete для ресторанов и блюд
-* Индексы в БД для оптимизации
-* **13 автоматических тестов** (7 unit + 4 integration + 2 Kafka)
-* Testcontainers для реальной БД в тестах
-* Embedded Kafka для тестирования сообщений
-* Глобальная обработка исключений с `@ControllerAdvice`
-* Логирование на уровнях INFO, ERROR
-* Чистый код с комментариями на английском
-* Swagger документация для всех API
-* Flyway миграции для версионирования БД
-* Security с JWT и ролями
-* Разделение на слои: Controller → Service → Repository
-* DTOs для всех запросов и ответов
-* Mappers для конвертации Entity ↔ DTO
-* Event-driven architecture с Kafka
-* Docker Compose для инфраструктуры
-* Soft delete для ресторанов и блюд
-* Индексы в БД для оптимизации
+Каждый микросервис имеет свою Swagger документацию:
+
+| Сервис | Swagger UI URL |
+|--------|----------------|
+| Order Service | http://localhost:8080/swagger-ui/index.html |
+| Restaurant Service | http://localhost:8081/swagger-ui/index.html |
+| User Service | http://localhost:8083/swagger-ui/index.html |
+| Payment Service | http://localhost:8084/swagger-ui/index.html |
+| Notification Service | http://localhost:8085/swagger-ui/index.html |
+
+В Swagger UI вы можете:
+- Просматривать все доступные endpoints
+- Тестировать API прямо из браузера
+- Видеть примеры запросов и ответов
+- Авторизоваться с JWT токеном
 
 ---
 
-## 10. Примеры использования
+## 11. Технологический стек
 
-### Получить список ресторанов:
-```bash
-curl http://localhost:8081/api/restaurants
-```
+### Backend
+* **Spring Boot 3.5.8** — фреймворк для создания микросервисов
+* **Spring Data JPA** — работа с базой данных
+* **Spring Security** — безопасность
+* **Spring Kafka** — интеграция с Kafka
+* **Flyway** — миграции базы данных
 
-### Создать заказ (требуется JWT):
+### База данных
+* **PostgreSQL 15** — реляционная база данных
+
+### Messaging
+* **Apache Kafka 3.9.1** — обмен сообщениями между сервисами
+
+### Security
+* **Keycloak 25.0.1** — аутентификация и авторизация
+* **JWT** — токены для доступа к API
+
+### Documentation
+* **SpringDoc OpenAPI 3** — автоматическая генерация API документации
+
+### Infrastructure
+* **Docker** — контейнеризация
+* **Docker Compose** — оркестрация контейнеров
+
+### Build Tool
+* **Maven** — управление зависимостями и сборка проекта
+
+### Java
+* **Java 17** — язык программирования
+
+---
+
+## 📝 Примеры использования
+
+### Создать заказ
+
 ```bash
 curl -X POST http://localhost:8080/api/orders \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
@@ -492,26 +637,70 @@ curl -X POST http://localhost:8080/api/orders \
   }'
 ```
 
-### Получить категории:
+### Обработать платеж
+
 ```bash
-curl http://localhost:8081/api/categories
+curl -X POST http://localhost:8084/api/payments \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderId": 1,
+    "paymentMethod": "CARD",
+    "cardNumber": "1234567890123456",
+    "cardHolderName": "John Doe",
+    "expiryDate": "12/25",
+    "cvv": "123"
+  }'
+```
+
+### Получить уведомления пользователя
+
+```bash
+curl -X GET http://localhost:8085/api/notifications/user/1 \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ---
 
-## 11. Дальнейшее развитие
+## 🎯 Итоговая архитектура
 
-* ✅ User Service для управления профилями (реализовано)
-* Интеграция Order Service с Restaurant Service через REST/Feign
-* Реализация Payment Service
-* Delivery Service с отслеживанием курьера
-* Notification Service (email, SMS, push)
-* Rating & Review система
-* Расширение тестового покрытия (цель: 80%+)
-* Real-time updates через WebSocket
-* API Gateway
-* Service Discovery (Eureka)
-* Distributed tracing (Zipkin)
-* Monitoring (Prometheus + Grafana)
-* CI/CD pipeline
+Теперь у нас есть **полнофункциональный backend** с 5 микросервисами:
 
+1. **Order Service** — управление заказами
+2. **Restaurant Service** — управление ресторанами и меню
+3. **User Service** — управление пользователями
+4. **Payment Service** — обработка платежей ⭐
+5. **Notification Service** — отправка уведомлений ⭐
+
+Все сервисы:
+- ✅ Общаются через Kafka
+- ✅ Имеют свои базы данных
+- ✅ Защищены через Keycloak
+- ✅ Документированы через Swagger
+- ✅ Запускаются через Docker Compose
+
+---
+
+## 🚀 Дальнейшее развитие
+
+* Delivery Service — управление доставкой и курьерами
+* Rating Service — отзывы и рейтинги
+* Analytics Service — аналитика и отчеты
+* API Gateway — единая точка входа
+* Service Discovery — автоматическое обнаружение сервисов
+* Distributed Tracing — отслеживание запросов между сервисами
+* Monitoring — Prometheus + Grafana
+
+---
+
+## 📞 Поддержка
+
+Если у вас возникли вопросы или проблемы:
+1. Проверьте логи сервисов
+2. Проверьте статус контейнеров: `docker-compose ps`
+3. Проверьте Kafka UI: http://localhost:8090
+4. Проверьте Swagger документацию для каждого сервиса
+
+---
+
+**Удачной разработки! 🎉**
