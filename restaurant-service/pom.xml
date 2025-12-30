@@ -129,7 +129,13 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0</version>
                 <configuration>
-					<failIfNoTests>false</failIfNoTests>
+                    <failIfNoTests>false</failIfNoTests>
+                    <includes>
+                        <include>**/*Test.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
+            
             <!-- Maven Failsafe Plugin - runs integration tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
