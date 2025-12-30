@@ -13,9 +13,8 @@ public class ProcessPaymentRequest {
     @NotBlank(message = "Payment method is required")
     private String paymentMethod;
 
-    @NotBlank(message = "Card number is required")
+    // Card fields are optional - only required for CARD payment method
     private String cardNumber;
-
     private String cardHolderName;
     private String expiryDate;
     private String cvv;

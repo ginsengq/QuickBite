@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional
@@ -44,8 +45,6 @@ public class OrderServiceImpl implements OrderService {
         // validate restaurant exists
         restaurantClient.validateRestaurantExists(request.getRestaurantId());
         
-        // TODO: integrate with restaurant client to get real prices and calculate totalPrice
-        
         // map request to entity
         Order order = orderMapper.toEntity(request);
         order.setStatus(OrderStatus.CREATED);
@@ -54,11 +53,29 @@ public class OrderServiceImpl implements OrderService {
 
         if (order.getItems() != null) {
             order.getItems().forEach(i -> i.setOrder(order));
+            
+            // get menu item prices from restaurant service
+            List<Long> menuItemIds = order.getItems().stream()
+                    .map(item -> item.getMenuItemId())
+                    .toList();
+            
+            Map<Long, Long> prices = restaurantClient.getMenuItemsPrices(menuItemIds);
+            
+            // set prices and calculate total
+            long totalPrice = 0;
+            for (var item : order.getItems()) {
+                Long price = prices.getOrDefault(item.getMenuItemId(), 0L);
+                item.setPrice(price);
+                totalPrice += price * item.getQuantity();
+            }
+            order.setTotalPrice(totalPrice);
+        } else {
+            order.setTotalPrice(0L);
         }
 
         // save order
         Order saved = orderRepository.save(order);
-        log.info("order created successfully with id: {}", saved.getId());
+        log.info("order created successfully with id: {}, total: {}", saved.getId(), saved.getTotalPrice());
 
         // publish order created event
         orderEventPublisher.publishOrderCreated(saved);
