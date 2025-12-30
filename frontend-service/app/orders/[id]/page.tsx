@@ -122,7 +122,7 @@ export default function OrderDetailsPage() {
                       <p className="text-sm text-gray-600">Количество: {item.quantity}</p>
                     </div>
                     <p className="font-semibold">
-                      {((item.price || 0) * item.quantity).toFixed(2)} ₽
+                      {((item.price || 0) * item.quantity).toFixed(2)} ₸
                     </p>
                   </div>
                 ))}
@@ -133,7 +133,7 @@ export default function OrderDetailsPage() {
             <div className="border-t pt-6 mb-6">
               <div className="flex justify-between text-2xl font-bold">
                 <span>Итого:</span>
-                <span className="text-primary-600">{order.totalAmount?.toFixed(2) || '0.00'} ₽</span>
+                <span className="text-primary-600">{order.totalAmount?.toFixed(2) || '0.00'} ₸</span>
               </div>
             </div>
 
@@ -153,7 +153,7 @@ export default function OrderDetailsPage() {
                     Метод: {payment.paymentMethod}
                   </p>
                   <p className="text-sm text-gray-600">
-                    Сумма: {payment.amount.toFixed(2)} ₽
+                    Сумма: {payment.amount.toFixed(2)} ₸
                   </p>
                 </div>
               ) : (

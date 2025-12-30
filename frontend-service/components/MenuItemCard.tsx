@@ -55,7 +55,7 @@ export default function MenuItemCard({ menuItem }: MenuItemCardProps) {
 
       <div className="flex items-center justify-between mt-auto">
         <span className="text-2xl font-bold text-primary-600">
-          {menuItem.price.toFixed(2)} ₽
+          {menuItem.price.toFixed(2)} ₸
         </span>
 
         {!menuItem.available ? (

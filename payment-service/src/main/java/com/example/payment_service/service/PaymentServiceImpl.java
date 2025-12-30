@@ -10,10 +10,13 @@ import com.example.payment_service.exception.PaymentNotFoundException;
 import com.example.payment_service.mapper.PaymentMapper;
 import com.example.payment_service.repository.PaymentRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -24,15 +27,21 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final PaymentMapper paymentMapper;
     private final PaymentEventPublisher paymentEventPublisher;
+    private final RestTemplate restTemplate;
+    private final String orderServiceUrl;
 
     public PaymentServiceImpl(
             PaymentRepository paymentRepository,
             PaymentMapper paymentMapper,
-            PaymentEventPublisher paymentEventPublisher
+            PaymentEventPublisher paymentEventPublisher,
+            RestTemplate restTemplate,
+            @Value("${order.service.url:http://order-service:8080}") String orderServiceUrl
     ) {
         this.paymentRepository = paymentRepository;
         this.paymentMapper = paymentMapper;
         this.paymentEventPublisher = paymentEventPublisher;
+        this.restTemplate = restTemplate;
+        this.orderServiceUrl = orderServiceUrl;
     }
 
     @Override
@@ -46,11 +55,14 @@ public class PaymentServiceImpl implements PaymentService {
                     throw new IllegalStateException("Payment already exists for order: " + request.getOrderId());
                 });
 
+        // get order details to get the total amount
+        Long orderAmount = getOrderAmount(request.getOrderId());
+
         // create payment entity
         Payment payment = new Payment();
         payment.setOrderId(request.getOrderId());
         payment.setUserId(1L); // in real app, get from JWT token
-        payment.setAmount(10000L); // in real app, get from order service
+        payment.setAmount(orderAmount);
         payment.setCurrency("KZT");
         payment.setPaymentMethod(request.getPaymentMethod());
         payment.setPaymentStatus(PaymentStatus.PROCESSING);
@@ -117,6 +129,24 @@ public class PaymentServiceImpl implements PaymentService {
         return paymentRepository.findAll().stream()
                 .map(paymentMapper::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    private Long getOrderAmount(Long orderId) {
+        try {
+            String url = orderServiceUrl + "/api/orders/" + orderId;
+            Map<String, Object> order = restTemplate.getForObject(url, Map.class);
+            if (order != null && order.containsKey("totalPrice")) {
+                Object totalPrice = order.get("totalPrice");
+                if (totalPrice instanceof Number) {
+                    return ((Number) totalPrice).longValue();
+                }
+            }
+            log.warn("Could not get order amount, using default 10000");
+            return 10000L;
+        } catch (Exception e) {
+            log.error("Failed to get order amount: {}", e.getMessage());
+            return 10000L;
+        }
     }
 }
 

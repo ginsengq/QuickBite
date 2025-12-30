@@ -105,7 +105,7 @@ export default function CartPage() {
                     {item.menuItem.description}
                   </p>
                   <p className="text-primary-600 font-bold">
-                    {item.menuItem.price.toFixed(2)} ₽
+                    {item.menuItem.price.toFixed(2)} ₸
                   </p>
                 </div>
 
@@ -151,7 +151,7 @@ export default function CartPage() {
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-gray-600">
                   <span>Сумма:</span>
-                  <span>{getTotalAmount().toFixed(2)} ₽</span>
+                  <span>{getTotalAmount().toFixed(2)} ₸</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Доставка:</span>
@@ -160,7 +160,7 @@ export default function CartPage() {
                 <div className="border-t pt-3 flex justify-between text-xl font-bold">
                   <span>Всего:</span>
                   <span className="text-primary-600">
-                    {getTotalAmount().toFixed(2)} ₽
+                    {getTotalAmount().toFixed(2)} ₸
                   </span>
                 </div>
               </div>
