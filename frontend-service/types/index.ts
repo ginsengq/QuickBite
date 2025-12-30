@@ -3,8 +3,8 @@ export interface Order {
   id: number;
   userId: number;
   restaurantId: number;
-  status: 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED';
-  totalAmount: number;
+  status: 'CREATED' | 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED';
+  totalPrice: number;
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];

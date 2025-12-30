@@ -51,6 +51,10 @@ export default function OrderDetailsPage() {
       });
       setPayment(paymentData);
       setShowPaymentForm(false);
+      
+      // Перезагрузить заказ чтобы обновить статус
+      await loadOrderDetails();
+      
       alert('Оплата успешно обработана!');
     } catch (error) {
       console.error('Payment failed', error);
@@ -133,7 +137,7 @@ export default function OrderDetailsPage() {
             <div className="border-t pt-6 mb-6">
               <div className="flex justify-between text-2xl font-bold">
                 <span>Итого:</span>
-                <span className="text-primary-600">{order.totalAmount?.toFixed(2) || '0.00'} ₸</span>
+                <span className="text-primary-600">{order.totalPrice?.toFixed(2) || '0.00'} ₸</span>
               </div>
             </div>
 

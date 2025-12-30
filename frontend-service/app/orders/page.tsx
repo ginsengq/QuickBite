@@ -116,7 +116,7 @@ export default function OrdersPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-bold text-primary-600">
-                          {order.totalAmount?.toFixed(2) || '0.00'} ₸
+                          {order.totalPrice?.toFixed(2) || '0.00'} ₸
                         </p>
                         <p className="text-sm text-gray-600">
                           {getStatusText(order.status)}
