@@ -46,7 +46,7 @@ public class RestaurantMapper {
         response.setDescription(restaurant.getDescription());
         response.setAddress(restaurant.getAddress());
         response.setPhoneNumber(restaurant.getPhoneNumber());
-        response.setIsActive(restaurant.getIsActive());
+        response.setActive(restaurant.getIsActive());
         response.setRating(restaurant.getRating());
         response.setCreatedAt(restaurant.getCreatedAt());
         response.setUpdatedAt(restaurant.getUpdatedAt());
