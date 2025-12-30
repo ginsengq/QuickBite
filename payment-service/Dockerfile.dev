@@ -1,0 +1,18 @@
+# Development Dockerfile для Spring Boot с hot reload
+FROM maven:3.9-eclipse-temurin-17-alpine
+
+WORKDIR /app
+
+# Копируем pom.xml и скачиваем зависимости
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+
+# Копируем исходный код (будет перезаписан volume mount)
+COPY src ./src
+
+# Порт приложения и LiveReload порт
+EXPOSE 8084
+EXPOSE 35729
+
+# Запускаем с spring-boot-devtools для hot reload
+CMD ["mvn", "spring-boot:run", "-Dspring-boot.run.jvmArguments='-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005'"]

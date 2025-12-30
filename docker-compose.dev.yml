@@ -1,0 +1,405 @@
+version: '3.8'
+
+services:
+  # postgresql database for order service
+  postgres-orders:
+    image: postgres:15-alpine
+    container_name: quickbite-postgres-orders
+    environment:
+      POSTGRES_DB: quickbite_orders
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Aidosmaidos2003
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-orders-data:/var/lib/postgresql/data
+    networks:
+      - quickbite-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # postgresql database for restaurant service
+  postgres-restaurants:
+    image: postgres:15-alpine
+    container_name: quickbite-postgres-restaurants
+    environment:
+      POSTGRES_DB: quickbite_restaurant
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Aidosmaidos2003
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-restaurants-data:/var/lib/postgresql/data
+    networks:
+      - quickbite-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # postgresql database for user service
+  postgres-users:
+    image: postgres:15-alpine
+    container_name: quickbite-postgres-users
+    environment:
+      POSTGRES_DB: quickbite_users
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Aidosmaidos2003
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-users-data:/var/lib/postgresql/data
+    networks:
+      - quickbite-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # postgresql database for payment service
+  postgres-payments:
+    image: postgres:15-alpine
+    container_name: quickbite-postgres-payments
+    environment:
+      POSTGRES_DB: quickbite_payments
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Aidosmaidos2003
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres-payments-data:/var/lib/postgresql/data
+    networks:
+      - quickbite-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # postgresql database for notification service
+  postgres-notifications:
+    image: postgres:15-alpine
+    container_name: quickbite-postgres-notifications
+    environment:
+      POSTGRES_DB: quickbite_notifications
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Aidosmaidos2003
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres-notifications-data:/var/lib/postgresql/data
+    networks:
+      - quickbite-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # keycloak for authentication
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0.1
+    container_name: quickbite-keycloak
+    command:
+      - start-dev
+      - --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8082
+      KC_HOSTNAME_URL: http://localhost:8082
+      KC_HEALTH_ENABLED: true
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./keycloak/quickbite-realm.json:/opt/keycloak/data/import/quickbite-realm.json:ro
+    networks:
+      - quickbite-network
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q '\"status\": \"UP\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  # zookeeper for kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: quickbite-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - quickbite-network
+
+  # kafka message broker
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: quickbite-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:29092,OUTSIDE://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: INSIDE://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks:
+      - quickbite-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "kafka:29092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # kafka UI for monitoring
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: quickbite-kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: quickbite-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - quickbite-network
+
+  # order service - DEVELOPMENT MODE с hot reload
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile.dev
+    container_name: quickbite-order-service
+    depends_on:
+      postgres-orders:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+      - "35729:35729"  # LiveReload port
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Монтируем исходный код для hot reload
+      - ./order-service/src:/app/src
+      - ./order-service/pom.xml:/app/pom.xml
+      # Используем named volumes для Maven кэша
+      - maven-repo:/root/.m2
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-orders:5432/quickbite_orders
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: Aidosmaidos2003
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8082/realms/quickbite
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://localhost:8082/realms/quickbite/protocol/openid-connect/certs
+      SPRING_DEVTOOLS_RESTART_ENABLED: "true"
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: "true"
+    networks:
+      - quickbite-network
+    restart: on-failure
+
+  # restaurant service - DEVELOPMENT MODE с hot reload
+  restaurant-service:
+    build:
+      context: ./restaurant-service
+      dockerfile: Dockerfile.dev
+    container_name: quickbite-restaurant-service
+    depends_on:
+      postgres-restaurants:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+      - "35730:35729"  # LiveReload port
+    volumes:
+      - ./restaurant-service/src:/app/src
+      - ./restaurant-service/pom.xml:/app/pom.xml
+      - maven-repo:/root/.m2
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-restaurants:5432/quickbite_restaurant
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: Aidosmaidos2003
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8082/realms/quickbite
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://localhost:8082/realms/quickbite/protocol/openid-connect/certs
+      SPRING_DEVTOOLS_RESTART_ENABLED: "true"
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: "true"
+    networks:
+      - quickbite-network
+    restart: on-failure
+
+  # user service - DEVELOPMENT MODE с hot reload
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile.dev
+    container_name: quickbite-user-service
+    depends_on:
+      postgres-users:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+      - "35731:35729"  # LiveReload port
+    volumes:
+      - ./user-service/src:/app/src
+      - ./user-service/pom.xml:/app/pom.xml
+      - maven-repo:/root/.m2
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-users:5432/quickbite_users
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: Aidosmaidos2003
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8082/realms/quickbite
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://localhost:8082/realms/quickbite/protocol/openid-connect/certs
+      SPRING_DEVTOOLS_RESTART_ENABLED: "true"
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: "true"
+    networks:
+      - quickbite-network
+    restart: on-failure
+
+  # payment service - DEVELOPMENT MODE с hot reload
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile.dev
+    container_name: quickbite-payment-service
+    depends_on:
+      postgres-payments:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8084:8084"
+      - "35732:35729"  # LiveReload port
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./payment-service/src:/app/src
+      - ./payment-service/pom.xml:/app/pom.xml
+      - maven-repo:/root/.m2
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-payments:5432/quickbite_payments
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: Aidosmaidos2003
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8082/realms/quickbite
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://localhost:8082/realms/quickbite/protocol/openid-connect/certs
+      SPRING_DEVTOOLS_RESTART_ENABLED: "true"
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: "true"
+    networks:
+      - quickbite-network
+    restart: on-failure
+
+  # notification service - DEVELOPMENT MODE с hot reload
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile.dev
+    container_name: quickbite-notification-service
+    depends_on:
+      postgres-notifications:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8085:8085"
+      - "35733:35729"  # LiveReload port
+    volumes:
+      - ./notification-service/src:/app/src
+      - ./notification-service/pom.xml:/app/pom.xml
+      - maven-repo:/root/.m2
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-notifications:5432/quickbite_notifications
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: Aidosmaidos2003
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://localhost:8082/realms/quickbite
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://localhost:8082/realms/quickbite/protocol/openid-connect/certs
+      SPRING_DEVTOOLS_RESTART_ENABLED: "true"
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: "true"
+    networks:
+      - quickbite-network
+    restart: on-failure
+
+  # frontend service - DEVELOPMENT MODE с hot reload
+  frontend-service:
+    build:
+      context: ./frontend-service
+      dockerfile: Dockerfile.dev
+    container_name: quickbite-frontend
+    depends_on:
+      - keycloak
+      - order-service
+      - restaurant-service
+      - user-service
+      - payment-service
+      - notification-service
+    ports:
+      - "3000:3000"
+    volumes:
+      # Монтируем весь проект для hot reload Next.js
+      - ./frontend-service:/app
+      - /app/node_modules  # Используем node_modules из контейнера
+      - /app/.next         # Используем .next из контейнера
+    environment:
+      NEXT_PUBLIC_KEYCLOAK_URL: http://localhost:8082
+      NEXT_PUBLIC_KEYCLOAK_REALM: quickbite
+      NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: backend-api
+      NEXT_PUBLIC_ORDER_SERVICE_URL: http://localhost:8080
+      NEXT_PUBLIC_RESTAURANT_SERVICE_URL: http://localhost:8081
+      NEXT_PUBLIC_USER_SERVICE_URL: http://localhost:8083
+      NEXT_PUBLIC_PAYMENT_SERVICE_URL: http://localhost:8084
+      NEXT_PUBLIC_NOTIFICATION_SERVICE_URL: http://localhost:8085
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"  # Для работы hot reload в Docker
+    networks:
+      - quickbite-network
+    restart: on-failure
+
+volumes:
+  postgres-orders-data:
+  postgres-restaurants-data:
+  postgres-users-data:
+  postgres-payments-data:
+  postgres-notifications-data:
+  maven-repo:  # Shared Maven repository для всех сервисов
+
+networks:
+  quickbite-network:
+    driver: bridge

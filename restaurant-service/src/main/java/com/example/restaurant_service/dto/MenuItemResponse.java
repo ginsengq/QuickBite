@@ -13,7 +13,7 @@ public class MenuItemResponse {
     private String description;
     private Long price;
     private String imageUrl;
-    private Boolean isAvailable;
+    private Boolean available;
     private Long restaurantId;
     private String restaurantName;
     private List<CategoryResponse> categories;

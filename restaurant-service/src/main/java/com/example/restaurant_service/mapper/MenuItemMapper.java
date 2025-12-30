@@ -59,7 +59,7 @@ public class MenuItemMapper {
         response.setDescription(menuItem.getDescription());
         response.setPrice(menuItem.getPrice());
         response.setImageUrl(menuItem.getImageUrl());
-        response.setIsAvailable(menuItem.getIsAvailable());
+        response.setAvailable(menuItem.getIsAvailable());
         response.setRestaurantId(menuItem.getRestaurant().getId());
         response.setRestaurantName(menuItem.getRestaurant().getName());
         

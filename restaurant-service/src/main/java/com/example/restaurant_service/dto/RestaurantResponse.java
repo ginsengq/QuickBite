@@ -12,7 +12,7 @@ public class RestaurantResponse {
     private String description;
     private String address;
     private String phoneNumber;
-    private Boolean isActive;
+    private Boolean active;
     private Double rating;
     private Instant createdAt;
     private Instant updatedAt;
