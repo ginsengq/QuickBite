@@ -1,0 +1,94 @@
+@startuml QuickBite Use Case Diagram
+
+left to right direction
+
+actor "Пользователь" as User
+actor "Администратор" as Admin
+actor "Владелец ресторана" as RestaurantOwner
+
+rectangle "QuickBite Система" {
+  
+  package "Управление аккаунтом" {
+    usecase "Регистрация" as UC1
+    usecase "Вход в систему" as UC2
+    usecase "Просмотр профиля" as UC3
+    usecase "Редактирование профиля" as UC4
+  }
+  
+  package "Ресторан и меню" {
+    usecase "Просмотр списка ресторанов" as UC5
+    usecase "Поиск ресторанов" as UC6
+    usecase "Просмотр меню ресторана" as UC7
+    usecase "Добавление товара в корзину" as UC8
+    usecase "Управление рестораном" as UC9
+    usecase "Управление меню" as UC10
+  }
+  
+  package "Заказы" {
+    usecase "Создание заказа" as UC11
+    usecase "Просмотр заказа" as UC12
+    usecase "Отслеживание статуса заказа" as UC13
+    usecase "Отмена заказа" as UC14
+    usecase "Изменение статуса заказа" as UC15
+  }
+  
+  package "Оплата" {
+    usecase "Оплата заказа" as UC16
+    usecase "Выбор способа оплаты" as UC17
+    usecase "Просмотр истории платежей" as UC18
+  }
+  
+  package "Уведомления" {
+    usecase "Получение уведомлений" as UC19
+    usecase "Просмотр уведомлений" as UC20
+  }
+  
+  package "Администрирование" {
+    usecase "Управление пользователями" as UC21
+    usecase "Просмотр всех заказов" as UC22
+    usecase "Просмотр всех платежей" as UC23
+    usecase "Управление всеми ресторанами" as UC24
+  }
+}
+
+' User relationships
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+User --> UC6
+User --> UC7
+User --> UC8
+User --> UC11
+User --> UC12
+User --> UC13
+User --> UC14
+User --> UC16
+User --> UC17
+User --> UC18
+User --> UC19
+User --> UC20
+
+' Restaurant Owner relationships
+RestaurantOwner --> UC2
+RestaurantOwner --> UC9
+RestaurantOwner --> UC10
+RestaurantOwner --> UC15
+
+' Admin relationships
+Admin --> UC2
+Admin --> UC21
+Admin --> UC22
+Admin --> UC23
+Admin --> UC24
+
+' Include relationships
+UC11 ..> UC8 : <<include>>
+UC16 ..> UC17 : <<include>>
+UC13 ..> UC19 : <<include>>
+
+' Extend relationships
+UC14 ..> UC13 : <<extend>>
+
+@enduml

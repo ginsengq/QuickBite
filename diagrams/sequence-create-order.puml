@@ -1,0 +1,105 @@
+@startuml QuickBite - Create and Pay Order Sequence
+
+actor User as "Пользователь"
+participant Frontend as "Frontend\n(Next.js)"
+participant Keycloak as "Keycloak"
+participant OrderService as "Order Service\n:8080"
+participant RestaurantService as "Restaurant Service\n:8081"
+participant PaymentService as "Payment Service\n:8084"
+participant NotificationService as "Notification Service\n:8085"
+participant Kafka as "Kafka"
+database OrderDB as "PostgreSQL\n(Orders)"
+database PaymentDB as "PostgreSQL\n(Payments)"
+database NotificationDB as "PostgreSQL\n(Notifications)"
+
+== Аутентификация ==
+User -> Frontend: Открыть приложение
+Frontend -> Keycloak: Запрос токена
+Keycloak --> Frontend: JWT токен
+Frontend -> Frontend: Сохранить токен
+
+== Просмотр меню и добавление в корзину ==
+User -> Frontend: Открыть список ресторанов
+Frontend -> RestaurantService: GET /api/restaurants
+RestaurantService --> Frontend: Список ресторанов
+
+User -> Frontend: Выбрать ресторан
+Frontend -> RestaurantService: GET /api/menu-items/restaurant/{id}
+RestaurantService --> Frontend: Список блюд
+
+User -> Frontend: Добавить блюда в корзину
+Frontend -> Frontend: Сохранить в localStorage
+
+== Создание заказа ==
+User -> Frontend: Оформить заказ
+Frontend -> OrderService: POST /api/orders\n+ JWT токен\n+ items[]
+activate OrderService
+
+OrderService -> RestaurantService: GET /api/restaurants/{id}
+RestaurantService --> OrderService: Restaurant данные
+
+OrderService -> RestaurantService: GET /api/menu-items/prices?ids=...
+RestaurantService --> OrderService: Map<menuItemId, price>
+
+OrderService -> OrderService: Вычислить totalPrice\n(price * quantity)
+
+OrderService -> OrderDB: INSERT Order\nstatus=CREATED
+OrderDB --> OrderService: Order saved
+
+OrderService -> Kafka: Publish "order-created" event
+Kafka --> NotificationService: Consume event
+activate NotificationService
+NotificationService -> NotificationDB: INSERT Notification\n"Заказ создан"
+NotificationDB --> NotificationService: Saved
+deactivate NotificationService
+
+OrderService --> Frontend: Order response\n(id, totalPrice, status=CREATED)
+deactivate OrderService
+
+Frontend --> User: Отобразить заказ
+
+== Оплата заказа ==
+User -> Frontend: Нажать "Оплатить"
+Frontend -> PaymentService: POST /api/payments\n+ orderId\n+ paymentMethod
+activate PaymentService
+
+PaymentService -> OrderService: GET /api/orders/{orderId}
+OrderService --> PaymentService: Order (totalPrice)
+
+PaymentService -> PaymentService: Создать Payment\namount=totalPrice\nstatus=PROCESSING
+
+PaymentService -> PaymentDB: INSERT Payment
+PaymentDB --> PaymentService: Payment saved
+
+PaymentService -> PaymentService: Simulate payment\ngateway (1 sec)
+
+PaymentService -> PaymentDB: UPDATE Payment\nstatus=COMPLETED
+PaymentDB --> PaymentService: Updated
+
+PaymentService -> Kafka: Publish "payment-completed" event\n{orderId, paymentStatus}
+deactivate PaymentService
+
+PaymentService --> Frontend: Payment response\n(COMPLETED)
+
+Kafka --> OrderService: Consume "payment-completed"
+activate OrderService
+OrderService -> OrderDB: UPDATE Order\nstatus=CONFIRMED
+OrderDB --> OrderService: Updated
+
+OrderService -> Kafka: Publish "order-status-changed"
+deactivate OrderService
+
+Kafka --> NotificationService: Consume event
+activate NotificationService
+NotificationService -> NotificationDB: INSERT Notification\n"Заказ подтвержден"
+NotificationDB --> NotificationService: Saved
+deactivate NotificationService
+
+== Автообновление на фронте ==
+loop Каждые 5 секунд
+  Frontend -> OrderService: GET /api/orders/{id}
+  OrderService --> Frontend: Order (status=CONFIRMED)
+  Frontend --> User: Обновить статус
+end
+
+@enduml

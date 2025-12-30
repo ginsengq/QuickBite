@@ -1,0 +1,142 @@
+@startuml QuickBite Component Diagram
+
+!define RECTANGLE_COLOR #E1F5FE
+!define DATABASE_COLOR #FFF9C4
+!define QUEUE_COLOR #F8BBD0
+
+skinparam componentStyle rectangle
+
+cloud "Клиент" {
+  component [Web Browser] as Browser
+}
+
+package "Frontend Layer" <<RECTANGLE_COLOR>> {
+  component [Next.js Frontend\n:3000] as Frontend
+  component [Keycloak JS Client] as KeycloakClient
+}
+
+package "API Gateway / Auth" <<RECTANGLE_COLOR>> {
+  component [Keycloak\nAuth Server\n:8082] as Keycloak
+}
+
+package "Microservices" <<RECTANGLE_COLOR>> {
+  
+  package "Order Service" {
+    component [Order API\n:8080] as OrderAPI
+    component [Order Business Logic] as OrderLogic
+    component [Restaurant Client] as RestaurantClient
+    component [Order Event Publisher] as OrderPublisher
+    component [Payment Event Consumer] as PaymentConsumer
+  }
+  
+  package "Restaurant Service" {
+    component [Restaurant API\n:8081] as RestaurantAPI
+    component [Restaurant Logic] as RestaurantLogic
+    component [Menu Item Logic] as MenuLogic
+  }
+  
+  package "User Service" {
+    component [User API\n:8083] as UserAPI
+    component [User Logic] as UserLogic
+    component [User Event Publisher] as UserPublisher
+  }
+  
+  package "Payment Service" {
+    component [Payment API\n:8084] as PaymentAPI
+    component [Payment Logic] as PaymentLogic
+    component [Order Client] as OrderClient
+    component [Payment Event Publisher] as PaymentPublisher
+  }
+  
+  package "Notification Service" {
+    component [Notification API\n:8085] as NotificationAPI
+    component [Notification Logic] as NotificationLogic
+    component [Order Event Consumer] as OrderConsumer
+    component [Payment Event Consumer2] as PaymentConsumer2
+  }
+}
+
+package "Message Broker" <<QUEUE_COLOR>> {
+  queue [Kafka\n:9092] as Kafka
+  component [order-created] as OrderTopic
+  component [payment-completed] as PaymentTopic
+  component [user-events] as UserTopic
+}
+
+package "Databases" <<DATABASE_COLOR>> {
+  database [PostgreSQL\nOrders\n:5432] as OrderDB
+  database [PostgreSQL\nRestaurants\n:5433] as RestaurantDB
+  database [PostgreSQL\nUsers\n:5434] as UserDB
+  database [PostgreSQL\nPayments\n:5435] as PaymentDB
+  database [PostgreSQL\nNotifications\n:5436] as NotificationDB
+}
+
+' Client connections
+Browser --> Frontend : HTTPS
+
+' Frontend connections
+Frontend --> Keycloak : OAuth2/OIDC
+Frontend --> KeycloakClient
+Frontend --> OrderAPI : REST + JWT
+Frontend --> RestaurantAPI : REST + JWT
+Frontend --> UserAPI : REST + JWT
+Frontend --> PaymentAPI : REST + JWT
+Frontend --> NotificationAPI : REST + JWT
+
+' Service internal connections
+OrderAPI --> OrderLogic
+OrderLogic --> RestaurantClient : REST
+OrderLogic --> OrderPublisher
+OrderLogic --> OrderDB
+
+RestaurantAPI --> RestaurantLogic
+RestaurantLogic --> MenuLogic
+RestaurantLogic --> RestaurantDB
+
+UserAPI --> UserLogic
+UserLogic --> UserPublisher
+UserLogic --> UserDB
+
+PaymentAPI --> PaymentLogic
+PaymentLogic --> OrderClient : REST
+PaymentLogic --> PaymentPublisher
+PaymentLogic --> PaymentDB
+
+NotificationAPI --> NotificationLogic
+NotificationLogic --> OrderConsumer
+NotificationLogic --> PaymentConsumer2
+NotificationLogic --> NotificationDB
+
+' Kafka connections
+OrderPublisher --> Kafka : Publish
+PaymentPublisher --> Kafka : Publish
+UserPublisher --> Kafka : Publish
+
+Kafka --> OrderTopic
+Kafka --> PaymentTopic
+Kafka --> UserTopic
+
+PaymentConsumer <-- Kafka : Subscribe
+OrderConsumer <-- Kafka : Subscribe
+PaymentConsumer2 <-- Kafka : Subscribe
+
+' Cross-service REST calls
+RestaurantClient --> RestaurantAPI
+OrderClient --> OrderAPI
+
+note right of Kafka
+  **Топики:**
+  - order-created
+  - payment-completed
+  - user-events
+end note
+
+note bottom of OrderLogic
+  **Логика:**
+  1. Получение цен из Restaurant Service
+  2. Расчет totalPrice
+  3. Публикация событий
+  4. Обработка Payment событий
+end note
+
+@enduml

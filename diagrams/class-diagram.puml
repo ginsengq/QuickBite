@@ -1,0 +1,209 @@
+@startuml QuickBite Class Diagram
+
+skinparam classAttributeIconSize 0
+
+package "Order Service" {
+  class Order {
+    - id: Long
+    - userId: Long
+    - restaurantId: Long
+    - status: OrderStatus
+    - totalPrice: Long
+    - createdAt: Instant
+    - updatedAt: Instant
+    - items: List<OrderItem>
+    + createOrder()
+    + updateStatus()
+    + getOrders()
+  }
+  
+  class OrderItem {
+    - id: Long
+    - menuItemId: Long
+    - quantity: Integer
+    - price: Long
+  }
+  
+  enum OrderStatus {
+    CREATED
+    CONFIRMED
+    PREPARING
+    READY
+    DELIVERING
+    DELIVERED
+    CANCELLED
+  }
+  
+  interface OrderRepository {
+    + findById()
+    + findByUserId()
+    + save()
+  }
+  
+  interface OrderService {
+    + createOrder()
+    + getOrderById()
+    + getOrdersByUser()
+    + updateStatus()
+  }
+  
+  class OrderServiceImpl {
+    - orderRepository
+    - orderMapper
+    - restaurantClient
+    - orderEventPublisher
+    + createOrder()
+    + updateStatus()
+  }
+}
+
+package "Restaurant Service" {
+  class Restaurant {
+    - id: Long
+    - name: String
+    - description: String
+    - address: String
+    - phoneNumber: String
+    - active: Boolean
+    - rating: Double
+  }
+  
+  class MenuItem {
+    - id: Long
+    - restaurantId: Long
+    - categoryId: Long
+    - name: String
+    - description: String
+    - price: Long
+    - available: Boolean
+    - imageUrl: String
+  }
+  
+  class Category {
+    - id: Long
+    - name: String
+    - description: String
+  }
+  
+  interface RestaurantRepository {
+    + findById()
+    + findAll()
+    + save()
+  }
+  
+  interface MenuItemRepository {
+    + findByRestaurantId()
+    + findByCategoryId()
+    + save()
+  }
+}
+
+package "User Service" {
+  class User {
+    - id: Long
+    - keycloakId: String
+    - email: String
+    - firstName: String
+    - lastName: String
+    - phoneNumber: String
+    - role: UserRole
+    - createdAt: Instant
+  }
+  
+  enum UserRole {
+    USER
+    ADMIN
+    RESTAURANT_OWNER
+  }
+  
+  interface UserRepository {
+    + findByKeycloakId()
+    + findByEmail()
+    + save()
+  }
+  
+  interface UserService {
+    + createUser()
+    + getUserById()
+    + updateUser()
+  }
+}
+
+package "Payment Service" {
+  class Payment {
+    - id: Long
+    - orderId: Long
+    - userId: Long
+    - amount: Long
+    - currency: String
+    - paymentMethod: String
+    - paymentStatus: PaymentStatus
+    - transactionId: String
+    - createdAt: Instant
+    - updatedAt: Instant
+  }
+  
+  enum PaymentStatus {
+    PROCESSING
+    COMPLETED
+    FAILED
+    REFUNDED
+  }
+  
+  interface PaymentRepository {
+    + findByOrderId()
+    + findByUserId()
+    + save()
+  }
+  
+  interface PaymentService {
+    + processPayment()
+    + getPaymentById()
+    + getPaymentByOrderId()
+  }
+}
+
+package "Notification Service" {
+  class Notification {
+    - id: Long
+    - userId: Long
+    - type: NotificationType
+    - message: String
+    - read: Boolean
+    - createdAt: Instant
+  }
+  
+  enum NotificationType {
+    ORDER_CREATED
+    ORDER_CONFIRMED
+    PAYMENT_COMPLETED
+    ORDER_DELIVERED
+  }
+  
+  interface NotificationRepository {
+    + findByUserId()
+    + save()
+  }
+}
+
+' Relationships
+Order "1" *-- "*" OrderItem : contains
+Order ..> OrderStatus : uses
+Restaurant "1" *-- "*" MenuItem : has
+MenuItem ..> Category : belongs to
+User ..> UserRole : has
+Payment ..> PaymentStatus : has
+Notification ..> NotificationType : has
+
+OrderServiceImpl ..|> OrderService : implements
+OrderServiceImpl --> OrderRepository : uses
+OrderServiceImpl --> OrderEventPublisher : uses
+OrderServiceImpl --> RestaurantClient : calls
+
+' Cross-service relationships (dotted for loose coupling)
+Order ..> Restaurant : references
+Order ..> User : references
+Payment ..> Order : for
+Notification ..> User : for
+
+@enduml
