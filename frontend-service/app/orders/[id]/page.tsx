@@ -25,6 +25,17 @@ export default function OrderDetailsPage() {
     }
   }, [orderId]);
 
+  // Auto-refresh order status every 5 seconds if payment exists
+  useEffect(() => {
+    if (!payment || !orderId) return;
+
+    const interval = setInterval(() => {
+      loadOrderDetails();
+    }, 5000); // Обновление каждые 5 секунд
+
+    return () => clearInterval(interval);
+  }, [payment, orderId]);
+
   const loadOrderDetails = async () => {
     try {
       const orderData = await orderService.getOrder(orderId);
